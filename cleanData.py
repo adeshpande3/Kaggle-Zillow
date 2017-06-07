@@ -99,6 +99,7 @@ def cleanData(properties):
 	properties = properties.drop('censustractandblock', axis=1)
 
 	properties['regionidcounty'] = properties['regionidcounty'].replace([3101, 1286, 2061],[0,1,2])
+	properties['regionidcounty'] = properties['regionidcounty'].fillna(0) 
 
 	# No idea how to handle these features
 	properties = properties.drop('regionidcity', axis=1)
@@ -151,3 +152,16 @@ def cleanData(properties):
 	properties = properties.drop('taxdelinquencyyear', axis=1)
 
 	return properties
+
+# Create xTrain and yTrain
+def createTrainingMatrices(properties, labels):
+	numTrainExamples = labels.shape[0]
+	numFeatures = properties.shape[1]
+	xTrain = np.zeros([numTrainExamples, numFeatures])
+	yTrain = np.zeros([numTrainExamples])
+
+	propertiesIds = properties['parcelid']
+	for index, row in labels.iterrows():
+	    xTrain[index] = properties[properties['parcelid'] == row['parcelid']]
+	    yTrain[index] = row['logerror']
+	return xTrain, yTrain
