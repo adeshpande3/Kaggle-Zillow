@@ -36,14 +36,14 @@ preds = model.predict(properties);
 print 'Getting submission ready'
 numTestExamples = properties.shape[0]
 numPredictionColumns = 7
-predictions = np.zeros([numTestExamples, numPredictionColumns])
+predictions = []
 for index, pred in enumerate(preds):
-    predictions[index][0] = int(cleanedPropertyData[index][0])
-    predictions[index][1:7] = pred
+	parcelNum = int(cleanedPropertyData[index][0])
+	predictions.append([parcelNum,pred,pred,pred,pred,pred,pred])
 
 print 'Writing results to CSV'
 firstRow = [['ParcelId', '201610', '201611', '201612', '201710', '201711', '201712']]
-with open("predictions.csv", "wb") as f:
+with open("preds.csv", "wb") as f:
     writer = csv.writer(f)
     writer.writerows(firstRow)
     writer.writerows(predictions)
