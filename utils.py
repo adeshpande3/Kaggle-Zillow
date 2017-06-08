@@ -1,5 +1,16 @@
 import pandas as pd 
 import numpy as np 
+import csv
+import operator
+from sklearn.model_selection import cross_val_score
+from sklearn import linear_model
+from sklearn import tree
+from sklearn import svm
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import GradientBoostingRegressor
 
 # Preprocess the data
 def cleanData(properties):
@@ -165,3 +176,73 @@ def createTrainingMatrices(properties, labels):
 	    xTrain[index] = properties[properties['parcelid'] == row['parcelid']]
 	    yTrain[index] = row['logerror']
 	return xTrain, yTrain
+
+def createKaggleSubmission(model, properties, cleanedPropertyData):
+	print 'Test prediction'
+	preds = model.predict(properties);
+
+	numTestExamples = properties.shape[0]
+	numPredictionColumns = 7
+	predictions = []
+	for index, pred in enumerate(preds):
+		parcelNum = int(cleanedPropertyData[index][0])
+		predictions.append([parcelNum,pred,pred,pred,pred,pred,pred])
+	firstRow = [['ParcelId', '201610', '201611', '201612', '201710', '201711', '201712']]
+	print 'Writing results to CSV'
+	with open("preds.csv", "wb") as f:
+	    writer = csv.writer(f)
+	    writer.writerows(firstRow)
+	    writer.writerows(predictions)
+
+def findBestMLModel(xTrain, yTrain):
+	allModels = {} # Dictionary of models and their respective losses
+
+	# All of the traditional regression models
+	model = linear_model.LinearRegression()
+	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
+	allModels[model] = predicted.mean()
+
+	model = linear_model.BayesianRidge()
+	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
+	allModels[model] = predicted.mean()
+
+	model = linear_model.Ridge()
+	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
+	allModels[model] = predicted.mean()
+
+	model = linear_model.Lasso()
+	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
+	allModels[model] = predicted.mean()
+
+	# SVM 
+	model = svm.SVR()
+	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
+	allModels[model] = predicted.mean()
+
+	# Decision Trees
+	model = tree.DecisionTreeRegressor()
+	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
+	allModels[model] = predicted.mean()
+
+	# Random Forests
+	model = RandomForestRegressor()
+	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
+	allModels[model] = predicted.mean()
+
+	# K Nearest Neighbors
+	model = KNeighborsRegressor()
+	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
+	allModels[model] = predicted.mean()
+
+	# Gradient Boosted Methods
+	model = GradientBoostingRegressor()
+	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
+	allModels[model] = predicted.mean()
+
+	# Return the best model
+	sortedModels = sorted(allModels.items(), key=operator.itemgetter(1), reverse=True)
+	for model in sortedModels:
+	    print 'Model:', model[0]
+	    print 'Loss:', model[1]
+
+	return sortedModels[0][0]
