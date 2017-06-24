@@ -7,10 +7,16 @@ from sklearn import linear_model
 from sklearn import tree
 from sklearn import svm
 from sklearn.svm import SVC
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import GradientBoostingRegressor
+import keras
+from keras.models import Sequential
+from keras.layers import Activation, Dropout, Flatten, Dense
+from keras.optimizers import SGD
+from keras.utils import np_utils
+from sklearn.cross_validation import StratifiedKFold
 
 # Preprocess the data
 def cleanData(properties):
@@ -86,8 +92,11 @@ def cleanData(properties):
 	heatingMode = properties['heatingorsystemtypeid'].value_counts().argmax()
 	properties['heatingorsystemtypeid'] = properties['heatingorsystemtypeid'].fillna(heatingMode)
 
-	properties = properties.drop('latitude', axis=1)
-	properties = properties.drop('longitude', axis=1)
+	latitudeMax = properties['latitude'].value_counts().argmax()
+	properties['latitude'] = properties['latitude'].fillna(latitudeMax)
+
+	longitudeMax = properties['longitude'].value_counts().argmax()
+	properties['longitude'] = properties['longitude'].fillna(longitudeMax)
 
 	lotSizeMode = properties['lotsizesquarefeet'].value_counts().argmax()
 	properties['lotsizesquarefeet'] = properties['lotsizesquarefeet'].fillna(lotSizeMode)
@@ -121,7 +130,7 @@ def cleanData(properties):
 	properties = properties.drop('roomcnt', axis=1)
 	properties = properties.drop('threequarterbathnbr', axis=1)
 
-	# Making deck type a binary label
+	# Making story type a binary label
 	properties['storytypeid'] = properties['storytypeid'].fillna(0) 
 	properties['storytypeid'] = properties['storytypeid'].replace(7,1)
 
@@ -162,6 +171,8 @@ def cleanData(properties):
 	properties = properties.drop('taxdelinquencyflag', axis=1)
 	properties = properties.drop('taxdelinquencyyear', axis=1)
 
+	#Have to normalize the data now
+
 	return properties
 
 # Create xTrain and yTrain
@@ -194,50 +205,89 @@ def createKaggleSubmission(model, properties, cleanedPropertyData):
 	    writer.writerows(firstRow)
 	    writer.writerows(predictions)
 
+def neuralNetwork(xTrain, yTrain):
+	skf = StratifiedKFold(labels, n_folds=10, shuffle=True)
+	loss=[]
+	for train, test in kfold.split(xTrain, yTrain):
+  		# create model
+		model = Sequential()
+		model.add(Dense(128, init='normal', input_dim = dim))
+		model.add(Activation('relu'))
+		model.add(Dropout(0.2))
+		model.add(Dense(64, init='normal'))
+		model.add(Activation('relu'))
+		model.add(Dropout(0.1))
+		model.add(Dense(16, init='normal'))
+		model.add(Activation('relu'))
+		model.add(Dense(1, init='normal'))
+		model.add(Activation('softmax'))
+		# Compile model
+		model.compile(loss='mean_absolute_error', optimizer='adam', metrics=['loss'])
+		# Fit the model
+		model.fit(X[train], Y[train], epochs=150, batch_size=10, verbose=0)
+		# evaluate the model
+		scores = model.evaluate(X[test], Y[test], verbose=0)
+		# TODO Add scores loss to loss list
+	return sum(loss)/len(loss)
+
 def findBestMLModel(xTrain, yTrain):
 	allModels = {} # Dictionary of models and their respective losses
 
 	# All of the traditional regression models
+	print 'Running Linear Regression'
 	model = linear_model.LinearRegression()
 	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
 	allModels[model] = predicted.mean()
 
+	print 'Running Bayesian Ridge Regression'
 	model = linear_model.BayesianRidge()
 	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
 	allModels[model] = predicted.mean()
 
+	print 'Running Ridge Regression'
 	model = linear_model.Ridge()
 	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
 	allModels[model] = predicted.mean()
 
+	print 'Running Lasso Regression'
 	model = linear_model.Lasso()
 	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
 	allModels[model] = predicted.mean()
 
 	# SVM 
-	model = svm.SVR()
-	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
-	allModels[model] = predicted.mean()
+	#print 'Running SVM'
+	#model = svm.SVR()
+	#predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
+	#allModels[model] = predicted.mean()
 
 	# Decision Trees
+	print 'Running Decision Trees'
 	model = tree.DecisionTreeRegressor()
 	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
 	allModels[model] = predicted.mean()
 
 	# Random Forests
+	print 'Running Random Forest'
 	model = RandomForestRegressor()
 	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
 	allModels[model] = predicted.mean()
 
 	# K Nearest Neighbors
+	print 'Running KNN'
 	model = KNeighborsRegressor()
 	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
 	allModels[model] = predicted.mean()
 
 	# Gradient Boosted Methods
+	print 'Running Gradient Boosted Regressor'
 	model = GradientBoostingRegressor()
 	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
 	allModels[model] = predicted.mean()
+
+	# Neural network
+
+	#print 'Running Neural Network'
+	#allModels[model] = neuralNetwork()
 
 	# Return the best model
 	sortedModels = sorted(allModels.items(), key=operator.itemgetter(1), reverse=True)

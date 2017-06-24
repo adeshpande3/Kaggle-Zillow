@@ -2,18 +2,23 @@ import pandas as pd
 import numpy as np 
 import csv
 import sklearn
-from sklearn import linear_model
 from utils import cleanData 
 from utils import createTrainingMatrices 
 from utils import createKaggleSubmission
 from utils import findBestMLModel
-from sklearn.model_selection import cross_val_predict
 import os.path
+from sklearn import linear_model
 
-if (os.path.isfile('xTrain.npy') and os.path.isfile('yTrain.npy')):
-	print 'Loading in precomputed xTrain and yTrain'
+## Dataset Cleaning TODOs ##
+# How do you save a dataframe in Numpy
+
+if (os.path.isfile('xTrain.npy') and os.path.isfile('yTrain.npy') and os.path.isfile('properties.npy')):
+	print 'Loading in precomputed xTrain, yTrain, and properties'
 	xTrain = np.load('xTrain.npy')
 	yTrain = np.load('yTrain.npy')
+	propertiesDataFrame = pd.read_csv('properties_2016.csv', low_memory=False)
+	properties = np.load('properties.npy')
+	cleanedPropertyData = pd.np.array(properties)
 else:
 	# Load in the data
 	print 'Loading in data'
@@ -33,15 +38,17 @@ else:
 	print 'Shape of the yTrain matrix:', yTrain.shape
 	np.save('xTrain', xTrain)
 	np.save('yTrain', yTrain)
+	np.save('properties', properties)
 
 # Train the model
-print 'Finding the best model'
-model = findBestMLModel(xTrain, yTrain)
-print 'The best model is:', model
+#print 'Finding the best model'
+#model = findBestMLModel(xTrain, yTrain)
+#print 'The best model is:', model
 print 'Training the model'
+model = linear_model.Lasso()
 model.fit(xTrain, yTrain)
 
-#createKaggleSubmission(model, properties, preds, cleanedPropertyData)
+createKaggleSubmission(model, properties, cleanedPropertyData)
 
 
 
